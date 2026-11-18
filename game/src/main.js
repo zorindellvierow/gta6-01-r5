@@ -756,23 +756,43 @@ function bootGame() {
           if (d < bestD) { bestD = d; best = b; }
         }
         if (!best) return false;
+        const GAP = 320;
         const spots = [
-          { x: best.x - 260, y: best.y + best.h / 2, angle: 0 },
-          { x: best.x + best.w + 260, y: best.y + best.h / 2, angle: Math.PI },
-          { x: best.x + best.w / 2, y: best.y - 260, angle: Math.PI / 2 },
-          { x: best.x + best.w / 2, y: best.y + best.h + 260, angle: -Math.PI / 2 },
+          { x: best.x - GAP, y: best.y + best.h / 2, angle: 0 },
+          { x: best.x + best.w + GAP, y: best.y + best.h / 2, angle: Math.PI },
+          { x: best.x + best.w / 2, y: best.y - GAP, angle: Math.PI / 2 },
+          { x: best.x + best.w / 2, y: best.y + best.h + GAP, angle: -Math.PI / 2 },
         ];
+        // Pilih spot yang jalurnya bersih >= 120px ke arah gedung (bukan
+        // cuma titiknya) — kalau tidak, mobil langsung mentok di halangan
+        // kecil dan tidak pernah mencapai kecepatan tabrakan.
+        const clearRun = (s) => {
+          let run = 0;
+          for (let d = 20; d <= GAP; d += 20) {
+            const x = s.x + Math.cos(s.angle) * d;
+            const y = s.y + Math.sin(s.angle) * d;
+            if (typeof isInWater === 'function' && isInWater(x, y)) break;
+            if (typeof circleHitsCollider === 'function' && circleHitsCollider(city, x, y, 14)) break;
+            run = d;
+          }
+          return run;
+        };
+        let chosen = null; let chosenRun = 0;
         for (const s of spots) {
           if (typeof circleHitsCollider === 'function' && circleHitsCollider(city, s.x, s.y, 16)) continue;
           if (typeof isInWater === 'function' && isInWater(s.x, s.y)) continue;
-          if (!playerCar) playerCar = createPlayerCar(s.x, s.y, s.angle);
-          playerCar.x = s.x; playerCar.y = s.y; playerCar.angle = s.angle; playerCar.speed = 0;
-          player.x = s.x; player.y = s.y; player.angle = s.angle;
-          driving = true;
-          if (!engineOn) { sfx('startEngine'); engineOn = true; }
-          return true;
+          const run = clearRun(s);
+          if (run > chosenRun) { chosenRun = run; chosen = s; }
+          if (run >= 300) break;
         }
-        return false;
+        if (!chosen || chosenRun < 120) return false;
+        if (!playerCar) playerCar = createPlayerCar(chosen.x, chosen.y, chosen.angle);
+        playerCar.x = chosen.x; playerCar.y = chosen.y;
+        playerCar.angle = chosen.angle; playerCar.speed = 0;
+        player.x = chosen.x; player.y = chosen.y; player.angle = chosen.angle;
+        driving = true;
+        if (!engineOn) { sfx('startEngine'); engineOn = true; }
+        return true;
       },
     },
   };
