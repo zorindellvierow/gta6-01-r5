@@ -32,6 +32,7 @@ import {
   applyPenalty,
 } from './police.js';
 import {
+  MISSION_DEFS,
   createMissionState,
   startMission,
   advanceMission,
@@ -204,11 +205,15 @@ function bootGame() {
   function saveNow() {
     if (typeof saveGame !== 'function') return false;
     try {
+      // save.js memvalidasi missionsDone sebagai array NOMOR indeks misi.
+      const doneIdx = missions.done
+        .map((id) => MISSION_DEFS.findIndex((d) => d.id === id))
+        .filter((n) => n >= 0);
       return !!saveGame({
         version: SAVE_VERSION,
         gameVersion: GAME_VERSION,
         money: player.money,
-        missionsDone: [...missions.done],
+        missionsDone: doneIdx,
         player: { x: player.x, y: player.y, angle: player.angle },
         wanted: wanted.level,
         playSeconds: Math.round(playSeconds),
@@ -231,10 +236,17 @@ function bootGame() {
     playSeconds = num(save.playSeconds, 0);
     muted = !!save.muted;
     if (muted) sfx('setMuted', true);
-    const done = Array.isArray(save.missionsDone) ? save.missionsDone : [];
+    const doneRaw = Array.isArray(save.missionsDone) ? save.missionsDone : [];
+    // Load: missionsDone tersimpan sebagai nomor indeks -> petakan ke id misi.
     missions = createMissionState();
-    missions.done = [...done];
-    missions.index = done.length;
+    missions.done = doneRaw
+      .map((n) => {
+        if (typeof n === 'number') return MISSION_DEFS[n] ? MISSION_DEFS[n].id : null;
+        if (typeof n === 'string') return n;
+        return null;
+      })
+      .filter(Boolean);
+    missions.index = missions.done.length;
     wanted = createWanted();
     wanted.level = clamp(num(save.wanted, 0), 0, 5);
     police = createPolice();
