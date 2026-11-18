@@ -716,6 +716,20 @@ function bootGame() {
         police.push({ x: p.x + 12, y: p.y, angle: 0, speed: 0, health: 100, ramTimer: 0 });
         return police.length;
       },
+      teleportCopToPlayer() {
+        // Pindahkan polisi yang sudah ada ke dekat pemain (tidak menambah
+        // jumlah — syncPoliceCount tidak akan membuangnya).
+        if (!police.length) {
+          const p = playerPos();
+          police.push({ x: p.x + 12, y: p.y, angle: 0, speed: 0, health: 100, ramTimer: 0 });
+          return police.length;
+        }
+        const p = playerPos();
+        const cop = police[0];
+        cop.x = p.x + 12; cop.y = p.y; cop.speed = 0;
+        return police.length;
+      },
+      carSpeed: () => (playerCar ? playerCar.speed : 0),
       setWanted(n) { wanted.level = clamp(n, 0, 5); wanted.quietSeconds = 0; },
       damage(n) { damagePlayer(n, 'debug'); },
       exitCar() {

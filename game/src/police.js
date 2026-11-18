@@ -100,11 +100,20 @@ export function spawnPolice(police, city, player) {
   return police[police.length - 1];
 }
 
-/** Samakan jumlah polisi dengan level wanted (level 0 -> tidak ada polisi). */
+/** Samakan jumlah polisi dengan level wanted (level 0 -> tidak ada polisi).
+ *  Kalau kebanyakan, buang yang PALING JAUH dari pemain (bukan pop buta). */
 export function syncPoliceCount(police, city, player, wantedLevel) {
   const want = wantedLevel > 0 ? levelInfo(wantedLevel).cops : 0;
   while (police.length < want) spawnPolice(police, city, player);
-  while (police.length > want) police.pop();
+  while (police.length > want) {
+    let far = 0;
+    let farD = -1;
+    for (let i = 0; i < police.length; i++) {
+      const d = Math.hypot(police[i].x - player.x, police[i].y - player.y);
+      if (d > farD) { farD = d; far = i; }
+    }
+    police.splice(far, 1);
+  }
   return police.length;
 }
 

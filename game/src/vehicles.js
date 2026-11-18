@@ -82,11 +82,25 @@ export function updatePlayerCar(car, input, city, dt, hooks = {}) {
   car.speed = clamp(car.speed, -MAX_SPEED * 0.35, MAX_SPEED);
 
   const steer = (steerRight ? 1 : 0) - (steerLeft ? 1 : 0);
-  if (steer !== 0 && Math.abs(car.speed) > 4) {
+  // Fallback: moveAxis() (terbukti jalan untuk pejalan kaki) kalau tidak ada
+  // aksi/tombol yang terbaca — maju = sumbu Y negatif.
+  let axisFwd = 0;
+  let axisSteer = 0;
+  try {
+    const mv = input.moveAxis ? input.moveAxis() : null;
+    if (mv) { axisFwd = -mv.y || 0; axisSteer = mv.x || 0; }
+  } catch { /* abaikan */ }
+  if (!fwd && !back && axisFwd > 0.3) car.speed += ACCEL * dt * Math.min(1, axisFwd);
+  if (!fwd && !back && axisFwd < -0.3) {
+    if (car.speed > 12) car.speed -= BRAKE * dt;
+    else car.speed -= ACCEL * 0.55 * dt;
+  }
+  const steerEff = steer !== 0 ? steer : (axisSteer > 0.3 ? 1 : axisSteer < -0.3 ? -1 : 0);
+  if (steerEff !== 0 && Math.abs(car.speed) > 4) {
     const dir = car.speed >= 0 ? 1 : -1;
     const grip = clamp(Math.abs(car.speed) / 130, 0.25, 1);
     const turnBoost = handbrake ? 1.45 : 1;
-    car.angle += steer * TURN_RATE * turnBoost * grip * dir * dt;
+    car.angle += steerEff * TURN_RATE * turnBoost * grip * dir * dt;
   }
 
   const dx = Math.cos(car.angle) * car.speed * dt;
