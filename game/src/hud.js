@@ -211,7 +211,7 @@ export function createHud() {
       endTitle.textContent = title || titles[kind] || 'SELESAI';
       endText.textContent = text || texts[kind] || '';
       endStats.innerHTML = stats.map((s) => `<div>${s}</div>`).join('');
-      btnRetry.textContent = kind === 'allDone' ? '↻ &nbsp;Main Lagi (Free Roam)' : '↻ &nbsp;Coba Lagi';
+      btnRetry.innerHTML = kind === 'allDone' ? '↻ &nbsp;Main Lagi (Free Roam)' : '↻ &nbsp;Coba Lagi';
       endScreen.classList.remove('hidden');
       menuScreen.classList.add('hidden');
       pauseScreen.classList.add('hidden');
