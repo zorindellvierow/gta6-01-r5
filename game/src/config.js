@@ -1,61 +1,89 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
-// the renderer scales it to the window, so no rule below depends on the screen size.
-
-export const FIELD = { width: 1280, height: 720, groundY: 664 };
-
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
-export const STEP = 1 / 60;
-
-export const PLAYER = {
-  width: 72,
-  height: 24,
-  speed: 560,
-  invulnerable: 1.5,
+// Crescent Bay — all tuning values for the open-world crime game.
+// The city is a grid of blocks separated by roads; everything below
+// is tuned so on-foot and driving both feel workable.
+export const CONFIG = {
+  title: 'Crescent Bay',
+  worldWidth: 3200,
+  worldHeight: 2400,
+  blockSize: 320,
+  roadWidth: 96,
+  playerWalkSpeed: 260,
+  playerRunSpeed: 390,
+  carAccel: 640,
+  carMaxSpeed: 660,
+  carReverseSpeed: 270,
+  carTurnRate: 2.7,
+  npcCarCount: 14,
+  pedestrianCount: 22,
+  copCarCount: 3,
+  maxWanted: 5,
+  wantedDecaySeconds: 14,
+  playerMaxHealth: 100,
+  bulletSpeed: 920,
+  bulletDamage: 34,
+  punchDamage: 12,
+  punchRange: 48,
+  punchCooldown: 0.35,
+  gunCooldown: 0.22,
+  missionReward: [400, 650, 900],
+  startingMoney: 50,
+  saveKey: 'crescent-bay-save-v1',
+  seedDefault: 1,
+  step: 1 / 60,
 };
 
-export const LIVES = 3;
+// A road exists wherever x or y falls inside a road band of the grid.
+export function isRoadAt(x, y) {
+  const { blockSize, roadWidth } = CONFIG;
+  const half = roadWidth / 2;
+  const mx = ((x % blockSize) + blockSize) % blockSize;
+  const my = ((y % blockSize) + blockSize) % blockSize;
+  return mx < half || mx > blockSize - half || my < half || my > blockSize - half;
+}
 
-export const BLOCK = {
-  minWidth: 40,
-  maxWidth: 110,
-  height: 36,
-  speed: 240,
-  speedPerLevel: 30,
-  speedJitter: 90,
-  interval: 0.55,
-  intervalScale: 0.88,
-  minInterval: 0.14,
-  dodgePoints: 1,
-};
+export function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
 
-export const COIN = {
-  size: 24,
-  speed: 190,
-  speedPerLevel: 14,
-  interval: 1.4,
-  intervalJitter: 0.8,
-  points: 10,
-};
+export function dist(ax, ay, bx, by) {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
-/** Seconds of play per level, and the last level: speeds and spawn rates stop growing there. */
-export const LEVEL = { seconds: 12, max: 12 };
+export function angleTo(ax, ay, bx, by) {
+  return Math.atan2(by - ay, bx - ax);
+}
 
-/** How many falling things can exist at once; the pool is allocated once, at boot. */
-export const POOL_SIZE = 64;
+export function wrapAngle(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
 
 export const PALETTE = {
-  backdrop: '#11141b',
-  sky: '#1b1f2a',
-  ground: '#2a3040',
-  player: '#4fc3f7',
-  block: '#e5534b',
-  coin: '#f2c94c',
-  panel: '#252b38',
+  backdrop: '#0d1117',
+  grass: '#233d2a',
+  blockA: '#2c3440',
+  blockB: '#333d4d',
+  blockC: '#3a2f3d',
+  road: '#1a1d24',
+  roadLine: '#c9a227',
+  sidewalk: '#3d4450',
+  water: '#1d4e6b',
+  park: '#1e4d2b',
+  player: '#f2c94c',
+  playerCar: '#e5534b',
+  npcCar: '#4fc3f7',
+  copCar: '#7aa2ff',
+  ped: '#e8e8e8',
   text: '#eef1f5',
-  muted: '#8b93a3',
+  muted: '#9aa3b2',
+  panel: '#161c26',
+  gold: '#f2c94c',
+  red: '#e5534b',
+  green: '#58c472',
+  blue: '#4fc3f7',
 };
 
 export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
-
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'block-dodger.best';

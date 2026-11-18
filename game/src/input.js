@@ -1,53 +1,73 @@
-// Keyboard and pointer input. Held keys give a steering direction; one-shot presses (start or
-// restart, pause) are queued as bit flags and taken once by the loop, so a press between two
-// frames is never lost and never counted twice.
+// Keyboard + mouse input. Held keys are polled each frame; presses are
+// edge-triggered and cleared once per frame so nothing is double-counted.
+const HELD = new Set();
+const PRESSED = new Set();
+let mouseX = 0;
+let mouseY = 0;
+let mouseDown = false;
+let mouseClicked = false;
+let attached = false;
 
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
+function keyName(e) {
+  return e.key.length === 1 ? e.key.toLowerCase() : e.key;
+}
 
-const LEFT = new Set(['ArrowLeft', 'KeyA']);
-const RIGHT = new Set(['ArrowRight', 'KeyD']);
-const CONFIRM = new Set(['Space', 'Enter']);
-const PAUSE = new Set(['KeyP', 'Escape']);
+function onKeyDown(e) {
+  const k = keyName(e);
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+    e.preventDefault();
+  }
+  if (!HELD.has(k)) PRESSED.add(k);
+  HELD.add(k);
+}
 
-export function createInput(target) {
-  let left = false;
-  let right = false;
-  let actions = 0;
+function onKeyUp(e) {
+  HELD.delete(keyName(e));
+}
 
-  window.addEventListener('keydown', (event) => {
-    if (LEFT.has(event.code)) left = true;
-    else if (RIGHT.has(event.code)) right = true;
-    else if (CONFIRM.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_CONFIRM;
-    } else if (PAUSE.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PAUSE;
-    } else return;
-    event.preventDefault();
-  });
-  window.addEventListener('keyup', (event) => {
-    if (LEFT.has(event.code)) left = false;
-    else if (RIGHT.has(event.code)) right = false;
-  });
-  // A key released while the tab is hidden never sends keyup: let go of everything on blur.
+function onMouseMove(e) {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+}
+
+function onMouseDown(e) {
+  mouseDown = true;
+  mouseClicked = true;
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+}
+
+function onMouseUp() {
+  mouseDown = false;
+}
+
+export function attachInput(canvas) {
+  if (attached) return;
+  attached = true;
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', () => {
-    left = false;
-    right = false;
+    HELD.clear();
   });
-  target.addEventListener('pointerdown', () => {
-    actions |= ACTION_CONFIRM;
-  });
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mousedown', onMouseDown);
+  window.addEventListener('mouseup', onMouseUp);
+}
 
-  return {
-    /** -1 for left, 1 for right, 0 for neither or both. */
-    direction() {
-      return (right ? 1 : 0) - (left ? 1 : 0);
-    },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
-    takeActions() {
-      const taken = actions;
-      actions = 0;
-      return taken;
-    },
-  };
+export function isDown(...keys) {
+  return keys.some((k) => HELD.has(k));
+}
+
+// True once, in the frame right after the key went down.
+export function wasPressed(...keys) {
+  return keys.some((k) => PRESSED.has(k));
+}
+
+export function endFrameInput() {
+  PRESSED.clear();
+  mouseClicked = false;
+}
+
+export function getMouse() {
+  return { x: mouseX, y: mouseY, down: mouseDown, clicked: mouseClicked };
 }
