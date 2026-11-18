@@ -124,6 +124,7 @@ export async function runShot(kind) {
         district: 'Downtown',
         objective: 'Misi 3/4 — Kejar Target Downtown: pepet mobil target! (2:14)',
       });
+      hud.hideScreens(); // jangan tampilkan menu di shot play
     } else if (kind === 'end') {
       const sp = spawnOf('hills', { x: 2000, y: 400 });
       if (typeof renderer.setMode === 'function') renderer.setMode('foot');
