@@ -493,8 +493,9 @@ function bootGame() {
         const res = updatePlayerCar(playerCar, input, city, dt, {
           onCrash: (impact) => {
             sfx('crash');
-            if (impact > 260) {
-              damagePlayer(Math.min(25, (impact - 260) / 18), 'crash');
+            // Tabrakan sedang pun melukai (impact > 120); makin keras makin sakit.
+            if (impact > 120) {
+              damagePlayer(Math.min(25, (impact - 120) / 25), 'crash');
             }
           },
         });
@@ -748,24 +749,10 @@ function bootGame() {
         if (driving) { driving = false; if (engineOn) { sfx('stopEngine'); engineOn = false; } }
       },
       aimAtWall() {
-        const p = playerPos();
-        let best = null; let bestD = Infinity;
-        for (const b of city.buildings || []) {
-          const cx = b.x + b.w / 2; const cy = b.y + b.h / 2;
-          const d = Math.hypot(cx - p.x, cy - p.y);
-          if (d < bestD) { bestD = d; best = b; }
-        }
-        if (!best) return false;
+        // Cari di SELURUH kota: sisi gedung dengan jalur lurus terbersih
+        // ke arah gedung (minimal 120px) supaya mobil bisa mencapai
+        // kecepatan tabrakan sebelum menabrak.
         const GAP = 320;
-        const spots = [
-          { x: best.x - GAP, y: best.y + best.h / 2, angle: 0 },
-          { x: best.x + best.w + GAP, y: best.y + best.h / 2, angle: Math.PI },
-          { x: best.x + best.w / 2, y: best.y - GAP, angle: Math.PI / 2 },
-          { x: best.x + best.w / 2, y: best.y + best.h + GAP, angle: -Math.PI / 2 },
-        ];
-        // Pilih spot yang jalurnya bersih >= 120px ke arah gedung (bukan
-        // cuma titiknya) — kalau tidak, mobil langsung mentok di halangan
-        // kecil dan tidak pernah mencapai kecepatan tabrakan.
         const clearRun = (s) => {
           let run = 0;
           for (let d = 20; d <= GAP; d += 20) {
@@ -778,12 +765,22 @@ function bootGame() {
           return run;
         };
         let chosen = null; let chosenRun = 0;
-        for (const s of spots) {
-          if (typeof circleHitsCollider === 'function' && circleHitsCollider(city, s.x, s.y, 16)) continue;
-          if (typeof isInWater === 'function' && isInWater(s.x, s.y)) continue;
-          const run = clearRun(s);
-          if (run > chosenRun) { chosenRun = run; chosen = s; }
-          if (run >= 300) break;
+        for (const b of city.buildings || []) {
+          const faces = [
+            { x: b.x - GAP, y: b.y + b.h / 2, angle: 0 },
+            { x: b.x + b.w + GAP, y: b.y + b.h / 2, angle: Math.PI },
+            { x: b.x + b.w / 2, y: b.y - GAP, angle: Math.PI / 2 },
+            { x: b.x + b.w / 2, y: b.y + b.h + GAP, angle: -Math.PI / 2 },
+          ];
+          for (const s of faces) {
+            if (s.x < 40 || s.y < 40 || s.x > 2360 || s.y > 1760) continue;
+            if (typeof circleHitsCollider === 'function' && circleHitsCollider(city, s.x, s.y, 16)) continue;
+            if (typeof isInWater === 'function' && isInWater(s.x, s.y)) continue;
+            const run = clearRun(s);
+            if (run > chosenRun) { chosenRun = run; chosen = s; }
+            if (run >= 300) break;
+          }
+          if (chosenRun >= 300) break;
         }
         if (!chosen || chosenRun < 120) return false;
         if (!playerCar) playerCar = createPlayerCar(chosen.x, chosen.y, chosen.angle);
