@@ -146,6 +146,13 @@ function bootGame() {
   ['keydown', 'pointerdown'].forEach((ev) =>
     window.addEventListener(ev, ensureAudio, { once: true, passive: true }));
 
+  // Helper input defensif: aksi bernama, dengan fallback kode tombol mentah
+  // (supaya game tetap jalan walau pemetaan aksi berbeda).
+  const wasAct = (a) => { try { return input.wasActionPressed(a); } catch { return false; } };
+  const isAct = (a) => { try { return input.isActionDown(a); } catch { return false; } };
+  const wasKey = (c) => { try { return input.wasPressed(c); } catch { return false; } };
+  const isKey = (c) => { try { return input.isDown(c); } catch { return false; } };
+
   // ---- state ------------------------------------------------------------
   let state = 'menu'; // menu | playing | paused | busted | wasted | complete
   const player = {
@@ -456,9 +463,9 @@ function bootGame() {
   function tick(dt, now) {
     // Pause / mute lewat polling aksi (sekali per frame).
     if (state === 'playing' || state === 'paused') {
-      if (input.wasActionPressed('PAUSE')) togglePause();
+      if (wasAct('PAUSE') || wasKey('Escape')) togglePause();
     }
-    if (input.wasActionPressed('MUTE')) {
+    if (wasAct('MUTE') || wasKey('KeyM')) {
       muted = !muted;
       sfx('setMuted', muted);
       hud.toast(muted ? 'Suara dimatikan (M)' : 'Suara dinyalakan (M)');
@@ -490,15 +497,21 @@ function bootGame() {
           if (mv && (mv.x || mv.y)) { ax = mv.x; ay = mv.y; }
         } catch { /* abaikan */ }
         if (!ax && !ay) {
-          if (input.isActionDown('UP')) ay -= 1;
-          if (input.isActionDown('DOWN')) ay += 1;
-          if (input.isActionDown('LEFT')) ax -= 1;
-          if (input.isActionDown('RIGHT')) ax += 1;
+          if (isAct('UP')) ay -= 1;
+          if (isAct('DOWN')) ay += 1;
+          if (isAct('LEFT')) ax -= 1;
+          if (isAct('RIGHT')) ax += 1;
+        }
+        if (!ax && !ay) {
+          if (isKey('KeyW') || isKey('ArrowUp')) ay -= 1;
+          if (isKey('KeyS') || isKey('ArrowDown')) ay += 1;
+          if (isKey('KeyA') || isKey('ArrowLeft')) ax -= 1;
+          if (isKey('KeyD') || isKey('ArrowRight')) ax += 1;
         }
         const len = Math.hypot(ax, ay);
         if (len > 0.01) {
           ax /= Math.max(1, len); ay /= Math.max(1, len);
-          let speed = input.isActionDown('RUN') ? RUN_SPEED : WALK_SPEED;
+          let speed = (isAct('RUN') || isKey('ShiftLeft') || isKey('ShiftRight')) ? RUN_SPEED : WALK_SPEED;
           if (typeof isInWater === 'function' && isInWater(player.x, player.y)) speed *= 0.5;
           player.angle = Math.atan2(ay, ax);
           const next = moveWithCollision(city, player.x, player.y, ax * speed * dt, ay * speed * dt, PLAYER_RADIUS);
@@ -509,9 +522,9 @@ function bootGame() {
       }
 
       // -- interaksi & tembak --
-      if (input.wasActionPressed('INTERACT')) tryInteract();
-      if (input.isActionDown('FIRE')) tryShoot();
-      if (input.wasActionPressed('RELOAD') && !player.reloading && player.ammo < MAG) {
+      if (wasAct('INTERACT') || wasKey('KeyE')) tryInteract();
+      if (isAct('FIRE') || isKey('KeyF')) tryShoot();
+      if ((wasAct('RELOAD') || wasKey('KeyR')) && !player.reloading && player.ammo < MAG) {
         player.reloading = true;
         player.reloadTimer = RELOAD_SECONDS;
       }
@@ -525,7 +538,7 @@ function bootGame() {
       player.fireCooldown = Math.max(0, player.fireCooldown - dt);
 
       // -- taksi (T) --
-      if (input.wasPressed('KeyT')) {
+      if (wasKey('KeyT')) {
         if (!taxi.active) {
           const fare = startTaxi(taxi, city, playerPos());
           hud.toast(`Taksi: jemput penumpang — ongkos $${fare}.`, 3200);

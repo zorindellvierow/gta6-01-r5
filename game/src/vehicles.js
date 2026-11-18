@@ -57,11 +57,14 @@ export function createPlayerCar(x, y, angle = 0, color = '#e8b93b') {
  */
 export function updatePlayerCar(car, input, city, dt, hooks = {}) {
   if (dt <= 0) return { crashed: false, impact: 0 };
-  const fwd = input.isActionDown('UP');
-  const back = input.isActionDown('DOWN');
-  const steerLeft = input.isActionDown('LEFT');
-  const steerRight = input.isActionDown('RIGHT');
-  const handbrake = input.isActionDown('HANDBRAKE');
+  // Aksi bernama + fallback kode tombol mentah.
+  const isAct = (a) => { try { return input.isActionDown(a); } catch { return false; } };
+  const isKey = (c) => { try { return input.isDown(c); } catch { return false; } };
+  const fwd = isAct('UP') || isKey('KeyW') || isKey('ArrowUp');
+  const back = isAct('DOWN') || isKey('KeyS') || isKey('ArrowDown');
+  const steerLeft = isAct('LEFT') || isKey('KeyA') || isKey('ArrowLeft');
+  const steerRight = isAct('RIGHT') || isKey('KeyD') || isKey('ArrowRight');
+  const handbrake = isAct('HANDBRAKE') || isKey('Space');
 
   if (fwd) car.speed += ACCEL * dt;
   if (back) {
