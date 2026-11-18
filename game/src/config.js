@@ -1,89 +1,177 @@
-// Crescent Bay — all tuning values for the open-world crime game.
-// The city is a grid of blocks separated by roads; everything below
-// is tuned so on-foot and driving both feel workable.
+// Crescent Bay — config.js
+// Semua konstanta game dalam satu tempat. Tidak ada logika di sini, hanya angka
+// dan warna, supaya tuning tidak menyentuh modul lain.
+
+export const GAME_TITLE = 'Crescent Bay';
+export const GAME_VERSION = '0.5.0-r5';
+export const SAVE_KEY = 'crescent-bay-save-v1';
+export const DEFAULT_SEED = 'crescent-bay-1';
+
+// --- Kota: grid jalan di atas peta dunia (satuan: meter game) ---
+export const WORLD = {
+  WIDTH: 2400,
+  HEIGHT: 1800,
+  BLOCK: 200, // ukuran satu blok kota (termasuk jalan di tepinya)
+  ROAD_WIDTH: 28,
+  ALLEY_WIDTH: 12,
+  SIDEWALK: 10,
+};
+
+// Teluk berbentuk bulan sabit di sisi timur peta: air menempati busur di timur.
+export const BAY = {
+  CENTER_X: 2650,
+  CENTER_Y: 900,
+  RADIUS_X: 620,
+  RADIUS_Y: 980,
+  SAND_WIDTH: 46, // lebar pantai di tepi air
+};
+
+// --- Distrik: batas kotak (x, y, w, h) + warna identitas ---
+export const DISTRICTS = {
+  MARINA: {
+    name: 'Marina',
+    bounds: { x: 1500, y: 1150, w: 800, h: 600 },
+    ground: '#5d6b63',
+    road: '#3a3f45',
+    accent: '#2f8f9d',
+    building: ['#7d8a96', '#5f7484', '#8fa3b0'],
+  },
+  DOWNTOWN: {
+    name: 'Downtown',
+    bounds: { x: 700, y: 150, w: 900, h: 800 },
+    ground: '#6b6f66',
+    road: '#33373d',
+    accent: '#e8b23a',
+    building: ['#4d5a6e', '#5d6b7d', '#3c4757', '#6e5d4f'],
+  },
+  BEACHFRONT: {
+    name: 'Beachfront',
+    bounds: { x: 1650, y: 100, w: 650, h: 1000 },
+    ground: '#c2a878',
+    road: '#4a4640',
+    accent: '#ff9e5e',
+    building: ['#e8dcc3', '#d9c49a', '#f2e6c9'],
+  },
+  HILLS: {
+    name: 'Hills',
+    bounds: { x: 80, y: 80, w: 560, h: 1640 },
+    ground: '#5f7a4e',
+    road: '#3d4148',
+    accent: '#7fb069',
+    building: ['#b08968', '#a98467', '#c9ada7', '#8a7967'],
+  },
+};
+
+export const DISTRICT_ORDER = ['MARINA', 'DOWNTOWN', 'BEACHFRONT', 'HILLS'];
+
+// --- Pemain jalan kaki ---
+export const PLAYER = {
+  WALK_SPEED: 150, // meter/detik
+  RUN_SPEED: 260, // Shift
+  RADIUS: 12,
+  HEALTH_MAX: 100,
+  START_MONEY: 50,
+};
+
+// --- Mobil ---
+export const VEHICLE = {
+  ACCEL: 420, // meter/detik^2
+  BRAKE: 700,
+  REVERSE_ACCEL: 260,
+  MAX_SPEED: 620,
+  MAX_REVERSE: 180,
+  TURN_RATE: 2.4, // radian/detik pada kecepatan penuh
+  HANDBRAKE_DECEL: 950, // Space
+  DRAG: 0.6, // gesekan per detik
+  LENGTH: 46,
+  WIDTH: 22,
+};
+
+// --- Wanted level 0-5 ---
+export const WANTED = {
+  MAX_LEVEL: 5,
+  DECAY_SECONDS: 25, // turun 1 level kalau tidak ada kejahatan
+  LEVELS: [
+    { level: 0, label: 'Bersih', cops: 0, chaseSpeed: 0 },
+    { level: 1, label: 'Dicari', cops: 1, chaseSpeed: 300 },
+    { level: 2, label: 'Buronan', cops: 2, chaseSpeed: 340 },
+    { level: 3, label: 'Siaga', cops: 3, chaseSpeed: 380 },
+    { level: 4, label: 'Pengejaran', cops: 4, chaseSpeed: 430 },
+    { level: 5, label: 'Paling Dicari', cops: 6, chaseSpeed: 480 },
+  ],
+};
+
+// --- Misi & ekonomi (semua harga dalam $) ---
+export const MISSIONS = {
+  REWARDS: [250, 400, 650, 900, 1400, 2200],
+  TIME_LIMIT_SECONDS: 240,
+  CONTACT_NAME: 'Selin',
+  PROTAGONIST_NAME: 'Rook',
+};
+
+export const ECONOMY = {
+  CAR_REPAIR: 120,
+  PISTOL_PRICE: 350,
+  AMMO_PRICE: 40,
+  AMMO_PACK: 12,
+  HEALTH_PACK_PRICE: 80,
+  PICKUP_CASH_MIN: 25,
+  PICKUP_CASH_MAX: 120,
+};
+
+// --- Senjata ---
+export const WEAPON = {
+  PISTOL_DAMAGE: 34,
+  PISTOL_RANGE: 320,
+  PISTOL_MAG: 12,
+  RELOAD_SECONDS: 1.4,
+  FIRE_COOLDOWN: 0.22,
+};
+
+// --- Kamera & jarak pandang ---
+export const VIEW = {
+  FOG_DISTANCE: 900, // jarak kabut mulai menutup (top-down: radius pandang)
+  CAMERA_ZOOM_FOOT: 1.0,
+  CAMERA_ZOOM_CAR: 0.72,
+  CAMERA_SMOOTH: 6.0, // lerp per detik
+  MINIMAP_SIZE: 168, // piksel
+  MINIMAP_ZOOM: 0.07,
+};
+
+// --- Warna umum ---
+export const COLORS = {
+  WATER: '#1d6f8e',
+  WATER_DEEP: '#145a75',
+  SAND: '#d9c49a',
+  GRASS: '#5f7a4e',
+  ROAD: '#33373d',
+  ROAD_LINE: '#d8c95a',
+  SIDEWALK_COLOR: '#8d8d84',
+  SKY_TOP: '#7ec8e3',
+  SKY_BOTTOM: '#f7d9a0',
+  NIGHT_TINT: 'rgba(10, 16, 48, 0.35)',
+  PLAYER: '#e63946',
+  POLICE: '#2456d6',
+  MISSION_MARKER: '#ffd60a',
+};
+
 export const CONFIG = {
-  title: 'Crescent Bay',
-  worldWidth: 3200,
-  worldHeight: 2400,
-  blockSize: 320,
-  roadWidth: 96,
-  playerWalkSpeed: 260,
-  playerRunSpeed: 390,
-  carAccel: 640,
-  carMaxSpeed: 660,
-  carReverseSpeed: 270,
-  carTurnRate: 2.7,
-  npcCarCount: 14,
-  pedestrianCount: 22,
-  copCarCount: 3,
-  maxWanted: 5,
-  wantedDecaySeconds: 14,
-  playerMaxHealth: 100,
-  bulletSpeed: 920,
-  bulletDamage: 34,
-  punchDamage: 12,
-  punchRange: 48,
-  punchCooldown: 0.35,
-  gunCooldown: 0.22,
-  missionReward: [400, 650, 900],
-  startingMoney: 50,
-  saveKey: 'crescent-bay-save-v1',
-  seedDefault: 1,
-  step: 1 / 60,
+  GAME_TITLE,
+  GAME_VERSION,
+  SAVE_KEY,
+  DEFAULT_SEED,
+  WORLD,
+  BAY,
+  DISTRICTS,
+  DISTRICT_ORDER,
+  PLAYER,
+  VEHICLE,
+  WANTED,
+  MISSIONS,
+  ECONOMY,
+  WEAPON,
+  VIEW,
+  COLORS,
 };
 
-// A road exists wherever x or y falls inside a road band of the grid.
-export function isRoadAt(x, y) {
-  const { blockSize, roadWidth } = CONFIG;
-  const half = roadWidth / 2;
-  const mx = ((x % blockSize) + blockSize) % blockSize;
-  const my = ((y % blockSize) + blockSize) % blockSize;
-  return mx < half || mx > blockSize - half || my < half || my > blockSize - half;
-}
-
-export function clamp(v, lo, hi) {
-  return v < lo ? lo : v > hi ? hi : v;
-}
-
-export function dist(ax, ay, bx, by) {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-export function angleTo(ax, ay, bx, by) {
-  return Math.atan2(by - ay, bx - ax);
-}
-
-export function wrapAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
-  return a;
-}
-
-export const PALETTE = {
-  backdrop: '#0d1117',
-  grass: '#233d2a',
-  blockA: '#2c3440',
-  blockB: '#333d4d',
-  blockC: '#3a2f3d',
-  road: '#1a1d24',
-  roadLine: '#c9a227',
-  sidewalk: '#3d4450',
-  water: '#1d4e6b',
-  park: '#1e4d2b',
-  player: '#f2c94c',
-  playerCar: '#e5534b',
-  npcCar: '#4fc3f7',
-  copCar: '#7aa2ff',
-  ped: '#e8e8e8',
-  text: '#eef1f5',
-  muted: '#9aa3b2',
-  panel: '#161c26',
-  gold: '#f2c94c',
-  red: '#e5534b',
-  green: '#58c472',
-  blue: '#4fc3f7',
-};
-
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+export default CONFIG;
