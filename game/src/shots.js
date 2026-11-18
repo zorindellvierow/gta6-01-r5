@@ -1,79 +1,165 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+// Crescent Bay — shots.js (fresh, round 5)
+// Mode screenshot deterministik untuk shots.json:
+//   ?shot=start&seed=1  -> menu awal di atas kota
+//   ?shot=play&seed=1   -> Rook mengemudi di Downtown, 1 polisi mengejar
+//   ?shot=end&seed=1    -> layar misi selesai
+// Tanpa input acak, tanpa loop animasi: satu render lalu berhenti.
+// Dipakai main.js saat ada ?shot= di URL. Bukan game loop.
+import * as ConfigMod from './config.js';
+import * as WorldMod from './world.js';
+import * as RenderMod from './render.js';
+import { createTraffic, createParkedCars } from './vehicles.js';
+import { createHud } from './hud.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
+function pick(mod, name) {
+  if (mod && typeof mod[name] !== 'undefined') return mod[name];
+  if (mod && mod.default && typeof mod.default[name] !== 'undefined') return mod.default[name];
+  return undefined;
+}
+const generateCity = pick(WorldMod, 'generateCity');
+const circleHitsCollider = pick(WorldMod, 'circleHitsCollider');
+const isInWater = pick(WorldMod, 'isInWater');
+const createRenderer = pick(RenderMod, 'createRenderer');
+const DISTRICTS = pick(ConfigMod, 'DISTRICTS') || {};
+const WORLD_CFG = pick(ConfigMod, 'WORLD') || {};
+const WORLD_W = typeof WORLD_CFG.WIDTH === 'number' ? WORLD_CFG.WIDTH : 2400;
+const WORLD_H = typeof WORLD_CFG.HEIGHT === 'number' ? WORLD_CFG.HEIGHT : 1800;
 
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
+/** Normalisasi bounds distrik: {x,y,w,h} / {minX,minY,maxX,maxY} / {bounds}. */
+function districtRect(def, fallback) {
+  if (!def) return fallback;
+  const b = def.bounds || def;
+  if (typeof b.x === 'number' && typeof b.w === 'number') {
+    return { x: b.x, y: b.y, w: b.w, h: b.h };
   }
-  return Infinity;
+  if (typeof b.minX === 'number' && typeof b.maxX === 'number') {
+    return { x: b.minX, y: b.minY, w: b.maxX - b.minX, h: b.maxY - b.minY };
+  }
+  if (typeof b.cx === 'number' && typeof b.cy === 'number') {
+    return { x: b.cx - 300, y: b.cy - 200, w: 600, h: 400 };
+  }
+  return fallback;
 }
 
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
-  }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
+function freePoint(city, x0, y0, x1, y1) {
+  for (let y = y0; y <= y1; y += 40) {
+    for (let x = x0; x <= x1; x += 40) {
+      if (typeof isInWater === 'function' && isInWater(x, y)) continue;
+      if (typeof circleHitsCollider === 'function' && circleHitsCollider(city, x, y, 16)) continue;
+      return { x, y };
     }
   }
-  return best;
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
 }
 
-/**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
+export async function runShot(kind) {
+  window.__shotDone = false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const seed = Number(params.get('seed') || '1') || 1;
+    const canvas = document.getElementById('game');
+    const city = generateCity(seed);
+    const renderer = createRenderer(canvas, city);
+    const hud = createHud();
+    if (typeof renderer.resize === 'function') renderer.resize();
+
+    const traffic = createTraffic(city, 6, seed);
+    const parked = createParkedCars(city);
+    const parkedFree = parked.filter((c) => !c.taken);
+    const pickups = city.pickups || [];
+    const spawnOf = (key, fb) => {
+      const s = city.spawns && city.spawns[key];
+      return s && typeof s.x === 'number' ? { x: s.x, y: s.y } : fb;
+    };
+
+    if (kind === 'start') {
+      const sp = spawnOf('player', { x: 1200, y: 900 });
+      if (typeof renderer.setMode === 'function') renderer.setMode('foot');
+      if (typeof renderer.follow === 'function') renderer.follow({ x: sp.x, y: sp.y, angle: 0 }, 0.016);
+      renderer.render({
+        player: { x: sp.x, y: sp.y, angle: 0 },
+        cars: [...traffic, ...parkedFree],
+        police: [],
+        pickups,
+        missionMarker: spawnOf('selin', null),
+        time: 0,
+        showMinimap: true,
+      });
+      hud.update({
+        money: 50, wanted: 0, health: 100, healthMax: 100,
+        ammo: 12, magSize: 12, reloading: false,
+        district: 'Crescent Bay', objective: '',
+      });
+      hud.showMenu({ hasSave: false, onNewGame: () => {}, onContinue: () => {} });
+    } else if (kind === 'play') {
+      // Rook mengemudi di Downtown, 1 polisi mengejar dari belakang.
+      const downtown = districtRect(DISTRICTS.DOWNTOWN, {
+        x: WORLD_W * 0.3, y: WORLD_H * 0.3, w: WORLD_W * 0.4, h: WORLD_H * 0.4,
+      });
+      const road = freePoint(city, downtown.x, downtown.y, downtown.x + downtown.w, downtown.y + downtown.h);
+      const angle = 0; // menghadap timur di jalan downtown
+      const playerCar = {
+        x: road.x, y: road.y, angle, speed: 320,
+        color: '#e8b93b', health: 100, isPlayer: true, parked: false,
+      };
+      const cop = {
+        x: road.x - 150, y: road.y + 26, angle: 0,
+        speed: 300, health: 100, ramTimer: 0,
+      };
+      const marker = { x: road.x + 420, y: road.y };
+      if (typeof renderer.setMode === 'function') renderer.setMode('car');
+      if (typeof renderer.follow === 'function') renderer.follow({ x: road.x, y: road.y, angle }, 0.016);
+      renderer.render({
+        player: { x: road.x, y: road.y, angle },
+        cars: [playerCar, ...traffic, ...parkedFree],
+        police: [cop],
+        pickups,
+        missionMarker: marker,
+        time: 96,
+        showMinimap: true,
+      });
+      hud.update({
+        money: 1250, wanted: 2, health: 86, healthMax: 100,
+        ammo: 9, magSize: 12, reloading: false,
+        district: 'Downtown',
+        objective: 'Misi 3/4 — Kejar Target Downtown: pepet mobil target! (2:14)',
+      });
+    } else if (kind === 'end') {
+      const sp = spawnOf('hills', { x: 2000, y: 400 });
+      if (typeof renderer.setMode === 'function') renderer.setMode('foot');
+      if (typeof renderer.follow === 'function') renderer.follow({ x: sp.x, y: sp.y, angle: 0 }, 0.016);
+      renderer.render({
+        player: { x: sp.x, y: sp.y, angle: 0 },
+        cars: [...traffic, ...parkedFree],
+        police: [],
+        pickups,
+        missionMarker: null,
+        time: 512,
+        showMinimap: true,
+      });
+      hud.update({
+        money: 2450, wanted: 0, health: 100, healthMax: 100,
+        ammo: 12, magSize: 12, reloading: false,
+        district: 'Hills',
+        objective: 'Semua misi selesai — Crescent Bay milikmu, Rook.',
+      });
+      hud.showEnd({
+        kind: 'allDone',
+        stats: [
+          '💰 Uang: $2,450',
+          '🎯 Misi selesai: 4 / 4',
+          '⏱️ Waktu main: 8:32',
+          '⭐ Wanted tertinggi: 3',
+        ],
+        onRetry: () => {},
+        onMenu: () => {},
+      });
+    } else {
+      throw new Error(`shot tidak dikenal: ${kind}`);
+    }
+    window.__shotDone = true;
+  } catch (err) {
+    console.error('[Crescent Bay] shot gagal:', err);
+    window.__shotError = String(err && err.message ? err.message : err);
   }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
-  }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
 }
